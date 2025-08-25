@@ -100,33 +100,26 @@ const login = async (req, res, next) => {
     }
 
     const { email, password } = req.body;
-    console.log('Login attempt for email:', email);
 
     // Check for user
     const user = await User.findOne({ email }).select('+password');
 
     if (!user) {
-      console.log('User not found for email:', email);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
       });
     }
-
-    console.log('User found:', user.name, user.role);
 
     // Check if password matches
     const isMatch = await user.matchPassword(password);
 
     if (!isMatch) {
-      console.log('Password mismatch for user:', email);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
       });
     }
-
-    console.log('Login successful for:', email);
 
     // Check if user is active
     if (!user.isActive) {

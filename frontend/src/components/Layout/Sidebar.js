@@ -103,7 +103,7 @@ const Sidebar = ({ isOpen, onClose, userRole }) => {
   return (
     <>
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
+      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 z-40">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200 pt-5 pb-4 overflow-y-auto">
           <div className="flex items-center flex-shrink-0 px-4">
             <div className="flex items-center">
@@ -137,7 +137,7 @@ const Sidebar = ({ isOpen, onClose, userRole }) => {
       {/* Mobile sidebar */}
       <div className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-white transform ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
-      } transition-transform duration-300 ease-in-out`}>
+      } transition-transform duration-300 ease-in-out border-r border-gray-200`}>
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
             <div className="flex items-center">

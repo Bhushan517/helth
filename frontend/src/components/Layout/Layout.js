@@ -18,15 +18,15 @@ const Layout = () => {
       />
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 min-h-screen flex flex-col">
         {/* Header */}
-        <Header 
+        <Header
           onMenuClick={() => setSidebarOpen(true)}
           user={user}
         />
 
         {/* Page content */}
-        <main className="py-6">
+        <main className="flex-1 py-6">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <Outlet />
           </div>
@@ -35,7 +35,7 @@ const Layout = () => {
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />

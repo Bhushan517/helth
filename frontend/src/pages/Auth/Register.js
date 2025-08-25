@@ -9,6 +9,7 @@ import LoadingSpinner from '../../components/UI/LoadingSpinner';
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [userRole, setUserRole] = useState('patient');
+  const [showCustomSpecialization, setShowCustomSpecialization] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { loading } = useSelector((state) => state.auth);
@@ -21,8 +22,36 @@ const Register = () => {
   } = useForm();
 
   const password = watch('password');
+  const selectedSpecialization = watch('specialization');
+
+  // Common medical specializations
+  const specializations = [
+    'Cardiology',
+    'Dermatology',
+    'Endocrinology',
+    'Gastroenterology',
+    'General Medicine',
+    'Gynecology',
+    'Neurology',
+    'Oncology',
+    'Ophthalmology',
+    'Orthopedics',
+    'Pediatrics',
+    'Psychiatry',
+    'Pulmonology',
+    'Radiology',
+    'Surgery',
+    'Urology',
+    'Other'
+  ];
 
   const onSubmit = async (data) => {
+    // If "Other" is selected, use the custom specialization
+    if (data.specialization === 'Other' && data.customSpecialization) {
+      data.specialization = data.customSpecialization;
+      delete data.customSpecialization;
+    }
+
     const result = await dispatch(registerUser(data));
     if (result.type === 'auth/register/fulfilled') {
       const dashboardRoute = getDashboardRoute(result.payload.user.role);
@@ -114,10 +143,18 @@ const Register = () => {
                 </div>
                 <input
                   {...register('name', {
-                    required: 'Name is required',
+                    required: 'Full name is required',
                     minLength: {
                       value: 2,
-                      message: 'Name must be at least 2 characters',
+                      message: 'Name must be at least 2 characters long',
+                    },
+                    maxLength: {
+                      value: 50,
+                      message: 'Name cannot exceed 50 characters',
+                    },
+                    pattern: {
+                      value: /^[a-zA-Z\s]+$/,
+                      message: 'Name can only contain letters and spaces',
                     },
                   })}
                   type="text"
@@ -141,10 +178,18 @@ const Register = () => {
                 </div>
                 <input
                   {...register('email', {
-                    required: 'Email is required',
+                    required: 'Email address is required',
                     pattern: {
-                      value: /^\S+@\S+$/i,
-                      message: 'Invalid email address',
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: 'Please enter a valid email address',
+                    },
+                    minLength: {
+                      value: 5,
+                      message: 'Email must be at least 5 characters long',
+                    },
+                    maxLength: {
+                      value: 100,
+                      message: 'Email cannot exceed 100 characters',
                     },
                   })}
                   type="email"
@@ -169,6 +214,18 @@ const Register = () => {
                 <input
                   {...register('phone', {
                     required: 'Phone number is required',
+                    pattern: {
+                      value: /^[\+]?[1-9][\d]{0,15}$/,
+                      message: 'Please enter a valid phone number',
+                    },
+                    minLength: {
+                      value: 10,
+                      message: 'Phone number must be at least 10 digits',
+                    },
+                    maxLength: {
+                      value: 15,
+                      message: 'Phone number cannot exceed 15 digits',
+                    },
                   })}
                   type="tel"
                   className="input-field pl-10"
@@ -191,6 +248,26 @@ const Register = () => {
                     <input
                       {...register('dateOfBirth', {
                         required: 'Date of birth is required',
+                        validate: (value) => {
+                          const today = new Date();
+                          const birthDate = new Date(value);
+                          const age = today.getFullYear() - birthDate.getFullYear();
+                          const monthDiff = today.getMonth() - birthDate.getMonth();
+
+                          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                            age--;
+                          }
+
+                          if (age < 18) {
+                            return 'You must be at least 18 years old to register';
+                          }
+
+                          if (age > 120) {
+                            return 'Please enter a valid date of birth';
+                          }
+
+                          return true;
+                        },
                       })}
                       type="date"
                       className="input-field"
@@ -228,18 +305,58 @@ const Register = () => {
                   <label htmlFor="specialization" className="form-label">
                     Specialization
                   </label>
-                  <input
+                  <select
                     {...register('specialization', {
-                      required: 'Specialization is required',
+                      required: 'Medical specialization is required',
                     })}
-                    type="text"
                     className="input-field"
-                    placeholder="e.g., Cardiology, Dermatology"
-                  />
+                    onChange={(e) => {
+                      setShowCustomSpecialization(e.target.value === 'Other');
+                    }}
+                  >
+                    <option value="">Select your specialization</option>
+                    {specializations.map((spec) => (
+                      <option key={spec} value={spec}>
+                        {spec}
+                      </option>
+                    ))}
+                  </select>
                   {errors.specialization && (
                     <p className="form-error">{errors.specialization.message}</p>
                   )}
                 </div>
+
+                {/* Custom specialization field */}
+                {selectedSpecialization === 'Other' && (
+                  <div>
+                    <label htmlFor="customSpecialization" className="form-label">
+                      Custom Specialization
+                    </label>
+                    <input
+                      {...register('customSpecialization', {
+                        required: selectedSpecialization === 'Other' ? 'Please specify your specialization' : false,
+                        minLength: {
+                          value: 3,
+                          message: 'Specialization must be at least 3 characters long',
+                        },
+                        maxLength: {
+                          value: 50,
+                          message: 'Specialization cannot exceed 50 characters',
+                        },
+                        pattern: {
+                          value: /^[a-zA-Z\s&-]+$/,
+                          message: 'Specialization can only contain letters, spaces, hyphens, and ampersands',
+                        },
+                      })}
+                      type="text"
+                      className="input-field"
+                      placeholder="Enter your specialization"
+                    />
+                    {errors.customSpecialization && (
+                      <p className="form-error">{errors.customSpecialization.message}</p>
+                    )}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="licenseNumber" className="form-label">
@@ -247,7 +364,19 @@ const Register = () => {
                     </label>
                     <input
                       {...register('licenseNumber', {
-                        required: 'License number is required',
+                        required: 'Medical license number is required',
+                        minLength: {
+                          value: 5,
+                          message: 'License number must be at least 5 characters long',
+                        },
+                        maxLength: {
+                          value: 20,
+                          message: 'License number cannot exceed 20 characters',
+                        },
+                        pattern: {
+                          value: /^[A-Z0-9-]+$/i,
+                          message: 'License number can only contain letters, numbers, and hyphens',
+                        },
                       })}
                       type="text"
                       className="input-field"
@@ -263,10 +392,18 @@ const Register = () => {
                     </label>
                     <input
                       {...register('experience', {
-                        required: 'Experience is required',
+                        required: 'Years of experience is required',
                         min: {
                           value: 0,
                           message: 'Experience cannot be negative',
+                        },
+                        max: {
+                          value: 60,
+                          message: 'Experience cannot exceed 60 years',
+                        },
+                        pattern: {
+                          value: /^\d+$/,
+                          message: 'Experience must be a whole number',
                         },
                       })}
                       type="number"
@@ -286,8 +423,16 @@ const Register = () => {
                     {...register('consultationFee', {
                       required: 'Consultation fee is required',
                       min: {
-                        value: 0,
-                        message: 'Fee cannot be negative',
+                        value: 10,
+                        message: 'Consultation fee must be at least $10',
+                      },
+                      max: {
+                        value: 1000,
+                        message: 'Consultation fee cannot exceed $1000',
+                      },
+                      pattern: {
+                        value: /^\d+(\.\d{1,2})?$/,
+                        message: 'Please enter a valid fee amount (up to 2 decimal places)',
                       },
                     })}
                     type="number"
@@ -314,8 +459,16 @@ const Register = () => {
                   {...register('password', {
                     required: 'Password is required',
                     minLength: {
-                      value: 6,
-                      message: 'Password must be at least 6 characters',
+                      value: 8,
+                      message: 'Password must be at least 8 characters long',
+                    },
+                    maxLength: {
+                      value: 128,
+                      message: 'Password cannot exceed 128 characters',
+                    },
+                    pattern: {
+                      value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+                      message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
                     },
                   })}
                   type={showPassword ? 'text' : 'password'}

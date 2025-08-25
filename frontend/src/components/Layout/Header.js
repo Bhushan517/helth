@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { FiMenu, FiBell, FiUser, FiLogOut, FiSettings } from 'react-icons/fi';
+import { FiMenu, FiUser, FiLogOut, FiSettings } from 'react-icons/fi';
 import { logout } from '../../redux/slices/authSlice';
 
 const Header = ({ onMenuClick, user }) => {
@@ -43,8 +43,8 @@ const Header = ({ onMenuClick, user }) => {
   };
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
+      <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Left side */}
           <div className="flex items-center">
@@ -54,8 +54,8 @@ const Header = ({ onMenuClick, user }) => {
             >
               <FiMenu className="h-6 w-6" />
             </button>
-            <div className="hidden lg:block">
-              <h1 className="text-2xl font-semibold text-gray-900">
+            <div className="ml-2 lg:ml-0">
+              <h1 className="text-xl lg:text-2xl font-semibold text-gray-900">
                 {getPageTitle(user?.role)}
               </h1>
             </div>
@@ -63,12 +63,6 @@ const Header = ({ onMenuClick, user }) => {
 
           {/* Right side */}
           <div className="flex items-center space-x-4">
-            {/* Notifications */}
-            <button className="p-2 rounded-full text-gray-400 hover:text-gray-500 hover:bg-gray-100 relative">
-              <FiBell className="h-6 w-6" />
-              <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
-            </button>
-
             {/* User dropdown */}
             <div className="relative" ref={dropdownRef}>
               <button
