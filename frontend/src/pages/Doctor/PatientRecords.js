@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   FiSearch,
   FiUser,
@@ -6,7 +7,6 @@ import {
   FiFileText,
   FiEye,
   FiEdit3,
-  FiPlus,
   FiFilter,
   FiDownload,
   FiPhone,
@@ -15,146 +15,39 @@ import {
   FiX,
   FiSave
 } from 'react-icons/fi';
+import { getAppointments } from '../../redux/slices/appointmentSlice';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
 
 const PatientRecords = () => {
-  const [patients, setPatients] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const dispatch = useDispatch();
+  const { appointments, loading } = useSelector((state) => state.appointments);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [showAddRecordModal, setShowAddRecordModal] = useState(false);
 
-  // Mock patients data
+  // Get appointments to extract patient data
   useEffect(() => {
-    setLoading(true);
-    setTimeout(() => {
-      setPatients([
-        {
-          _id: '1',
-          name: 'John Doe',
-          email: 'john.doe@email.com',
-          phone: '+1234567890',
-          age: 35,
-          gender: 'male',
-          address: { city: 'New York', state: 'NY' },
-          lastVisit: '2024-01-20',
-          totalAppointments: 8,
-          medicalHistory: [
-            {
-              condition: 'Hypertension',
-              diagnosedDate: '2023-06-15',
-              status: 'active',
-              notes: 'Well controlled with medication'
-            },
-            {
-              condition: 'Type 2 Diabetes',
-              diagnosedDate: '2023-08-20',
-              status: 'active',
-              notes: 'Diet controlled, monitoring required'
-            }
-          ],
-          allergies: ['Penicillin', 'Shellfish'],
-          medications: [
-            {
-              name: 'Lisinopril',
-              dosage: '10mg',
-              frequency: 'once daily',
-              startDate: '2023-06-15'
-            },
-            {
-              name: 'Metformin',
-              dosage: '500mg',
-              frequency: 'twice daily',
-              startDate: '2023-08-20'
-            }
-          ],
-          recentAppointments: [
-            {
-              date: '2024-01-20',
-              type: 'follow-up',
-              notes: 'Blood pressure stable, continue current medication'
-            },
-            {
-              date: '2024-01-10',
-              type: 'consultation',
-              notes: 'Routine checkup, all vitals normal'
-            }
-          ]
-        },
-        {
-          _id: '2',
-          name: 'Sarah Wilson',
-          email: 'sarah.wilson@email.com',
-          phone: '+1234567891',
-          age: 28,
-          gender: 'female',
-          address: { city: 'Los Angeles', state: 'CA' },
-          lastVisit: '2024-01-18',
-          totalAppointments: 5,
-          medicalHistory: [
-            {
-              condition: 'Migraine',
-              diagnosedDate: '2023-09-10',
-              status: 'active',
-              notes: 'Triggered by stress and lack of sleep'
-            }
-          ],
-          allergies: ['Latex'],
-          medications: [
-            {
-              name: 'Sumatriptan',
-              dosage: '50mg',
-              frequency: 'as needed',
-              startDate: '2023-09-10'
-            }
-          ],
-          recentAppointments: [
-            {
-              date: '2024-01-18',
-              type: 'consultation',
-              notes: 'Migraine frequency reduced, continue current treatment'
-            }
-          ]
-        },
-        {
-          _id: '3',
-          name: 'Mike Johnson',
-          email: 'mike.johnson@email.com',
-          phone: '+1234567892',
-          age: 42,
-          gender: 'male',
-          address: { city: 'Chicago', state: 'IL' },
-          lastVisit: '2024-01-15',
-          totalAppointments: 12,
-          medicalHistory: [
-            {
-              condition: 'High Cholesterol',
-              diagnosedDate: '2023-03-20',
-              status: 'active',
-              notes: 'Responding well to statin therapy'
-            }
-          ],
-          allergies: [],
-          medications: [
-            {
-              name: 'Atorvastatin',
-              dosage: '20mg',
-              frequency: 'once daily',
-              startDate: '2023-03-20'
-            }
-          ],
-          recentAppointments: [
-            {
-              date: '2024-01-15',
-              type: 'follow-up',
-              notes: 'Cholesterol levels improved, continue medication'
-            }
-          ]
-        }
-      ]);
-      setLoading(false);
-    }, 1000);
+    dispatch(getAppointments());
+  }, [dispatch]);
+
+  // Extract unique patients from appointments
+  const patients = appointments.reduce((uniquePatients, appointment) => {
+    if (appointment.patient && !uniquePatients.find(p => p._id === appointment.patient._id)) {
+      const patientAppointments = appointments.filter(apt => apt.patient?._id === appointment.patient._id);
+      const patientData = {
+        ...appointment.patient,
+        totalAppointments: patientAppointments.length,
+        lastVisit: patientAppointments
+          .filter(apt => apt.status === 'completed')
+          .sort((a, b) => new Date(b.appointmentDate) - new Date(a.appointmentDate))[0]?.appointmentDate,
+        recentAppointments: patientAppointments
+          .sort((a, b) => new Date(b.appointmentDate) - new Date(a.appointmentDate))
+          .slice(0, 3)
+      };
+      uniquePatients.push(patientData);
+    }
+    return uniquePatients;
   }, []);
 
   const filteredPatients = patients.filter(patient =>

@@ -78,7 +78,7 @@ router.put('/:id/cancel', cancelAppointment);
 router.put('/:id/rate', authorize('patient'), rateAppointmentValidation, rateAppointment);
 
 // Get available slots for a doctor
-router.get('/slots/available', [
+router.get('/slots/available', protect, [
   query('doctor').isMongoId().withMessage('Please provide a valid doctor ID'),
   query('date').isISO8601().withMessage('Please provide a valid date'),
 ], getAvailableSlots);

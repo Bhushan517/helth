@@ -32,79 +32,7 @@ const DoctorAppointments = () => {
     dispatch(getAppointments(params));
   }, [dispatch, statusFilter]);
 
-  // Mock appointments data for doctor
-  const mockAppointments = [
-    {
-      _id: '1',
-      patient: {
-        name: 'John Doe',
-        email: 'john.doe@email.com',
-        phone: '+1234567890',
-        age: 35,
-        gender: 'male'
-      },
-      appointmentDate: '2024-01-22',
-      timeSlot: { startTime: '09:00', endTime: '09:30' },
-      type: 'consultation',
-      status: 'scheduled',
-      reason: 'Regular checkup and blood pressure monitoring',
-      symptoms: ['headache', 'fatigue'],
-      consultationFee: 100,
-      notes: {
-        patient: 'Experiencing headaches for the past week'
-      }
-    },
-    {
-      _id: '2',
-      patient: {
-        name: 'Sarah Wilson',
-        email: 'sarah.wilson@email.com',
-        phone: '+1234567891',
-        age: 28,
-        gender: 'female'
-      },
-      appointmentDate: '2024-01-22',
-      timeSlot: { startTime: '10:00', endTime: '10:30' },
-      type: 'follow-up',
-      status: 'confirmed',
-      reason: 'Follow-up for previous treatment',
-      consultationFee: 80,
-      notes: {
-        patient: 'Following up on medication effectiveness'
-      }
-    },
-    {
-      _id: '3',
-      patient: {
-        name: 'Mike Johnson',
-        email: 'mike.johnson@email.com',
-        phone: '+1234567892',
-        age: 42,
-        gender: 'male'
-      },
-      appointmentDate: '2024-01-21',
-      timeSlot: { startTime: '14:00', endTime: '14:30' },
-      type: 'consultation',
-      status: 'completed',
-      reason: 'Chest pain evaluation',
-      consultationFee: 120,
-      notes: {
-        doctor: 'ECG normal, recommended lifestyle changes',
-        patient: 'Chest pain after exercise'
-      },
-      prescription: [
-        {
-          medication: 'Aspirin',
-          dosage: '81mg',
-          frequency: 'once daily',
-          duration: '30 days',
-          instructions: 'Take with food'
-        }
-      ]
-    }
-  ];
-
-  const filteredAppointments = mockAppointments.filter(appointment => {
+  const filteredAppointments = appointments.filter(appointment => {
     const matchesSearch = appointment.patient.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
 
@@ -143,13 +71,17 @@ const DoctorAppointments = () => {
     setShowDetailsModal(true);
   };
 
-  const todayAppointments = filteredAppointments.filter(apt =>
-    apt.appointmentDate === new Date().toISOString().split('T')[0]
-  );
+  const todayAppointments = filteredAppointments.filter(apt => {
+    const appointmentDate = new Date(apt.appointmentDate).toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
+    return appointmentDate === today;
+  });
 
-  const upcomingAppointments = filteredAppointments.filter(apt =>
-    apt.appointmentDate > new Date().toISOString().split('T')[0]
-  );
+  const upcomingAppointments = filteredAppointments.filter(apt => {
+    const appointmentDate = new Date(apt.appointmentDate).toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
+    return appointmentDate > today;
+  });
 
   return (
     <div className="space-y-6">
@@ -189,7 +121,7 @@ const DoctorAppointments = () => {
             <FiCheck className="h-6 w-6 text-purple-600" />
           </div>
           <h3 className="text-2xl font-bold text-gray-900">
-            {mockAppointments.filter(a => a.status === 'completed').length}
+            {appointments.filter(a => a.status === 'completed').length}
           </h3>
           <p className="text-gray-600">Completed</p>
         </div>
@@ -199,7 +131,7 @@ const DoctorAppointments = () => {
             <FiUser className="h-6 w-6 text-yellow-600" />
           </div>
           <h3 className="text-2xl font-bold text-gray-900">
-            {new Set(mockAppointments.map(a => a.patient.name)).size}
+            {new Set(appointments.map(a => a.patient?.name).filter(Boolean)).size}
           </h3>
           <p className="text-gray-600">Patients</p>
         </div>

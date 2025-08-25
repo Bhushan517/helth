@@ -3,6 +3,18 @@ const Appointment = require('../models/Appointment');
 const User = require('../models/User');
 const moment = require('moment');
 
+// Helper functions for time conversion
+const timeToMinutes = (timeString) => {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const minutesToTime = (minutes) => {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+};
+
 // @desc    Get appointments
 // @route   GET /api/appointments
 // @access  Private
@@ -354,7 +366,7 @@ const getAvailableSlots = async (req, res) => {
     const dayOfWeek = moment(date).format('dddd').toLowerCase();
     const dayAvailability = doctorUser.availability.find(avail => avail.day === dayOfWeek);
 
-    if (!dayAvailability) {
+    if (!dayAvailability || !dayAvailability.slots || dayAvailability.slots.length === 0) {
       return res.status(200).json({
         success: true,
         data: [],
@@ -375,21 +387,39 @@ const getAvailableSlots = async (req, res) => {
       status: { $in: ['scheduled', 'confirmed'] },
     });
 
-    // Filter available slots
-    const availableSlots = dayAvailability.slots.filter(slot => {
-      if (!slot.isAvailable) return false;
+    // Break down large slots into 30-minute intervals and filter available slots
+    const availableSlots = [];
 
-      // Check if slot conflicts with any booked appointment
-      const hasConflict = bookedAppointments.some(appointment => {
-        const appointmentStart = appointment.timeSlot.startTime;
-        const appointmentEnd = appointment.timeSlot.endTime;
-        
-        return (
-          (slot.startTime < appointmentEnd && slot.endTime > appointmentStart)
-        );
-      });
+    dayAvailability.slots.forEach(slot => {
+      if (!slot.isAvailable) return;
 
-      return !hasConflict;
+      // Convert time strings to minutes for easier calculation
+      const startMinutes = timeToMinutes(slot.startTime);
+      const endMinutes = timeToMinutes(slot.endTime);
+
+      // Create 30-minute intervals
+      for (let time = startMinutes; time < endMinutes; time += 30) {
+        const slotStart = minutesToTime(time);
+        const slotEnd = minutesToTime(time + 30);
+
+        // Check if this 30-minute slot conflicts with any booked appointment
+        const hasConflict = bookedAppointments.some(appointment => {
+          const appointmentStart = appointment.timeSlot.startTime;
+          const appointmentEnd = appointment.timeSlot.endTime;
+
+          return (
+            (slotStart < appointmentEnd && slotEnd > appointmentStart)
+          );
+        });
+
+        if (!hasConflict) {
+          availableSlots.push({
+            startTime: slotStart,
+            endTime: slotEnd,
+            isAvailable: true
+          });
+        }
+      }
     });
 
     res.status(200).json({

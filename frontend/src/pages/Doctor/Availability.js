@@ -15,7 +15,7 @@ import LoadingSpinner from '../../components/UI/LoadingSpinner';
 
 const DoctorAvailability = () => {
   const dispatch = useDispatch();
-  const { loading } = useSelector((state) => state.auth);
+  const { user, loading } = useSelector((state) => state.auth);
   const [isEditing, setIsEditing] = useState(false);
   const [availability, setAvailability] = useState([]);
 
@@ -30,67 +30,36 @@ const DoctorAvailability = () => {
 
   // Initialize availability data
   useEffect(() => {
-    // Mock existing availability data
-    const mockAvailability = [
-      {
-        day: 'monday',
-        isAvailable: true,
-        slots: [
-          { startTime: '09:00', endTime: '12:00' },
-          { startTime: '14:00', endTime: '17:00' }
-        ]
-      },
-      {
-        day: 'tuesday',
-        isAvailable: true,
-        slots: [
-          { startTime: '10:00', endTime: '13:00' },
-          { startTime: '15:00', endTime: '18:00' }
-        ]
-      },
-      {
-        day: 'wednesday',
-        isAvailable: true,
-        slots: [
-          { startTime: '09:00', endTime: '12:00' }
-        ]
-      },
-      {
-        day: 'thursday',
-        isAvailable: true,
-        slots: [
-          { startTime: '09:00', endTime: '12:00' },
-          { startTime: '14:00', endTime: '17:00' }
-        ]
-      },
-      {
-        day: 'friday',
-        isAvailable: true,
-        slots: [
-          { startTime: '09:00', endTime: '12:00' }
-        ]
-      },
-      {
-        day: 'saturday',
-        isAvailable: false,
-        slots: []
-      },
-      {
-        day: 'sunday',
-        isAvailable: false,
-        slots: []
-      }
+    // Initialize with empty availability for all days
+    const defaultAvailability = [
+      { day: 'monday', slots: [] },
+      { day: 'tuesday', slots: [] },
+      { day: 'wednesday', slots: [] },
+      { day: 'thursday', slots: [] },
+      { day: 'friday', slots: [] },
+      { day: 'saturday', slots: [] },
+      { day: 'sunday', slots: [] }
     ];
 
-    setAvailability(mockAvailability);
-  }, []);
+    // If user has existing availability, use it, otherwise use default
+    if (user && user.availability && user.availability.length > 0) {
+      setAvailability(user.availability);
+    } else {
+      setAvailability(defaultAvailability);
+    }
+  }, [user]);
 
   const handleDayToggle = (dayIndex) => {
     const updatedAvailability = [...availability];
-    updatedAvailability[dayIndex].isAvailable = !updatedAvailability[dayIndex].isAvailable;
+    const currentDay = updatedAvailability[dayIndex];
 
-    if (!updatedAvailability[dayIndex].isAvailable) {
-      updatedAvailability[dayIndex].slots = [];
+    // Toggle availability by adding/removing slots
+    if (currentDay.slots.length > 0) {
+      // If has slots, remove them (make unavailable)
+      currentDay.slots = [];
+    } else {
+      // If no slots, add a default slot (make available)
+      currentDay.slots = [{ startTime: '09:00', endTime: '17:00', isAvailable: true }];
     }
 
     setAvailability(updatedAvailability);
@@ -100,7 +69,8 @@ const DoctorAvailability = () => {
     const updatedAvailability = [...availability];
     updatedAvailability[dayIndex].slots.push({
       startTime: '09:00',
-      endTime: '10:00'
+      endTime: '10:00',
+      isAvailable: true
     });
     setAvailability(updatedAvailability);
   };
@@ -129,7 +99,7 @@ const DoctorAvailability = () => {
 
   const getTotalHours = () => {
     return availability.reduce((total, day) => {
-      if (!day.isAvailable) return total;
+      if (day.slots.length === 0) return total;
 
       return total + day.slots.reduce((dayTotal, slot) => {
         const start = new Date(`2000-01-01 ${slot.startTime}`);
@@ -141,7 +111,7 @@ const DoctorAvailability = () => {
   };
 
   const getAvailableDays = () => {
-    return availability.filter(day => day.isAvailable).length;
+    return availability.filter(day => day.slots.length > 0).length;
   };
 
   return (
@@ -251,8 +221,7 @@ const DoctorAvailability = () => {
               onClick={() => {
                 const updated = availability.map(day => ({
                   ...day,
-                  isAvailable: true,
-                  slots: day.slots.length === 0 ? [{ startTime: '09:00', endTime: '17:00' }] : day.slots
+                  slots: day.slots.length === 0 ? [{ startTime: '09:00', endTime: '17:00', isAvailable: true }] : day.slots
                 }));
                 setAvailability(updated);
               }}
@@ -264,7 +233,6 @@ const DoctorAvailability = () => {
               onClick={() => {
                 const updated = availability.map(day => ({
                   ...day,
-                  isAvailable: false,
                   slots: []
                 }));
                 setAvailability(updated);
@@ -277,9 +245,8 @@ const DoctorAvailability = () => {
               onClick={() => {
                 const updated = availability.map(day => ({
                   ...day,
-                  isAvailable: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].includes(day.day),
                   slots: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].includes(day.day)
-                    ? [{ startTime: '09:00', endTime: '17:00' }]
+                    ? [{ startTime: '09:00', endTime: '17:00', isAvailable: true }]
                     : []
                 }));
                 setAvailability(updated);
@@ -316,24 +283,24 @@ const DaySchedule = ({
           {isEditing ? (
             <input
               type="checkbox"
-              checked={schedule.isAvailable}
+              checked={schedule.slots.length > 0}
               onChange={() => onDayToggle(dayIndex)}
               className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
             />
           ) : (
             <div className={`w-4 h-4 rounded ${
-              schedule.isAvailable ? 'bg-green-500' : 'bg-gray-300'
+              schedule.slots.length > 0 ? 'bg-green-500' : 'bg-gray-300'
             }`}></div>
           )}
           <h3 className="text-lg font-medium text-gray-900">{dayName}</h3>
           <span className={`badge ${
-            schedule.isAvailable ? 'badge-success' : 'badge-gray'
+            schedule.slots.length > 0 ? 'badge-success' : 'badge-gray'
           }`}>
-            {schedule.isAvailable ? 'Available' : 'Unavailable'}
+            {schedule.slots.length > 0 ? 'Available' : 'Unavailable'}
           </span>
         </div>
 
-        {isEditing && schedule.isAvailable && (
+        {isEditing && schedule.slots.length > 0 && (
           <button
             onClick={() => onAddTimeSlot(dayIndex)}
             className="btn-secondary text-sm flex items-center"
@@ -344,7 +311,7 @@ const DaySchedule = ({
         )}
       </div>
 
-      {schedule.isAvailable && (
+      {schedule.slots.length > 0 && (
         <div className="space-y-3">
           {schedule.slots.length === 0 ? (
             <p className="text-gray-500 text-sm">No time slots configured</p>
