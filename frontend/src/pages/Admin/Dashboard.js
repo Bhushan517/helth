@@ -10,7 +10,8 @@ import {
   FiActivity,
   FiBarChart2,
   FiSettings,
-  FiArrowRight
+  FiArrowRight,
+  FiCheckCircle,
 } from 'react-icons/fi';
 import { getDashboardStats } from '../../redux/slices/adminSlice';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
@@ -75,58 +76,66 @@ const AdminDashboard = () => {
         </p>
       </div>
 
-      {/* Stats Overview */}
+      {/* Stats Overview - customized cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          {/* Doctors */}
           <div className="stats-card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-primary-100 text-sm">Total Users</p>
-                <p className="text-2xl font-bold">{stats.users.total}</p>
-                <p className="text-primary-200 text-xs">
-                  +{stats.users.newThisMonth} this month
-                </p>
+                <p className="text-primary-100 text-sm">Doctors</p>
+                <p className="text-2xl font-bold">{stats.users.doctors}</p>
+                <p className="text-primary-200 text-xs">Total registered</p>
               </div>
-              <FiUsers className="h-8 w-8 text-primary-200" />
+              <FiActivity className="h-8 w-8 text-primary-200" />
             </div>
           </div>
 
-          <div className="stats-card-secondary">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-secondary-100 text-sm">Total Appointments</p>
-                <p className="text-2xl font-bold">{stats.appointments.total}</p>
-                <p className="text-secondary-200 text-xs">
-                  {stats.appointments.thisMonth} this month
-                </p>
-              </div>
-              <FiCalendar className="h-8 w-8 text-secondary-200" />
-            </div>
-          </div>
-
+          {/* Total Revenue */}
           <div className="stats-card-accent">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-accent-100 text-sm">Monthly Revenue</p>
-                <p className="text-2xl font-bold">${stats.revenue.thisMonth}</p>
-                <p className="text-accent-200 text-xs">
-                  Revenue generated
-                </p>
+                <p className="text-accent-100 text-sm">Total Revenue</p>
+                <p className="text-2xl font-bold">${stats.revenue.total}</p>
+                <p className="text-accent-200 text-xs">All-time completed</p>
               </div>
               <FiDollarSign className="h-8 w-8 text-accent-200" />
             </div>
           </div>
 
+          {/* Appointments */}
+          <div className="stats-card-secondary">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-secondary-100 text-sm">Appointments</p>
+                <p className="text-2xl font-bold">{stats.appointments.total}</p>
+                <p className="text-secondary-200 text-xs">{stats.appointments.thisMonth} this month</p>
+              </div>
+              <FiCalendar className="h-8 w-8 text-secondary-200" />
+            </div>
+          </div>
+
+          {/* Active Users */}
           <div className="stats-card-gray">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-100 text-sm">Active Users</p>
                 <p className="text-2xl font-bold">{stats.users.active}</p>
-                <p className="text-gray-200 text-xs">
-                  Currently active
-                </p>
+                <p className="text-gray-200 text-xs">Currently active</p>
               </div>
               <FiUserCheck className="h-8 w-8 text-gray-200" />
+            </div>
+          </div>
+
+          {/* Completion Rate */}
+          <div className="stats-card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-primary-100 text-sm">Completion Rate</p>
+                <p className="text-2xl font-bold">{stats.appointments.completionRate}%</p>
+                <p className="text-primary-200 text-xs">of all appointments</p>
+              </div>
+              <FiCheckCircle className="h-8 w-8 text-primary-200" />
             </div>
           </div>
         </div>

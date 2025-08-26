@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Appointment = require('../models/Appointment');
 const moment = require('moment');
+const { validationResult } = require('express-validator');
 
 // @desc    Get admin dashboard stats
 // @route   GET /api/admin/dashboard
@@ -36,6 +37,7 @@ const getDashboardStats = async (req, res) => {
       thisMonthAppointments,
       completedAppointments,
       cancelledAppointments,
+      totalRevenueAgg,
     ] = await Promise.all([
       Appointment.countDocuments(),
       Appointment.countDocuments({
@@ -49,6 +51,10 @@ const getDashboardStats = async (req, res) => {
       }),
       Appointment.countDocuments({ status: 'completed' }),
       Appointment.countDocuments({ status: 'cancelled' }),
+      Appointment.aggregate([
+        { $match: { status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$consultationFee' } } },
+      ]),
     ]);
 
     // Get revenue data
@@ -109,6 +115,8 @@ const getDashboardStats = async (req, res) => {
       },
     ]);
 
+    const completionRate = totalAppointments > 0 ? Math.round((completedAppointments / totalAppointments) * 100) : 0;
+
     const stats = {
       users: {
         total: totalUsers,
@@ -124,9 +132,11 @@ const getDashboardStats = async (req, res) => {
         thisMonth: thisMonthAppointments,
         completed: completedAppointments,
         cancelled: cancelledAppointments,
+        completionRate,
       },
       revenue: {
         thisMonth: monthlyRevenue[0]?.total || 0,
+        total: totalRevenueAgg[0]?.total || 0,
       },
       topDoctors,
     };
@@ -227,10 +237,44 @@ const getSystemAnalytics = async (req, res) => {
       },
     ]);
 
+    // Recent system activity (appointments + new users)
+    const [recentAppointments, recentRegistrations] = await Promise.all([
+      Appointment.find({})
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .populate('doctor', 'name specialization')
+        .populate('patient', 'name')
+        .lean(),
+      User.find({})
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .select('name email role createdAt')
+        .lean(),
+    ]);
+
+    const recentActivities = [
+      ...recentAppointments.map((a) => ({
+        type: 'appointment',
+        action: a.status === 'completed' ? 'Appointment completed' : a.status === 'cancelled' ? 'Appointment cancelled' : 'Appointment booked',
+        user: `${a.patient?.name || 'Patient'} with Dr. ${a.doctor?.name || 'Unknown'}`,
+        time: a.createdAt,
+        status: a.status,
+      })),
+      ...recentRegistrations.map((u) => ({
+        type: 'registration',
+        action: 'New user registration',
+        user: `${u.name} (${u.role})`,
+        time: u.createdAt,
+      })),
+    ]
+      .sort((a, b) => new Date(b.time) - new Date(a.time))
+      .slice(0, 10);
+
     const analytics = {
       dailyAppointments,
       dailyRegistrations,
       specializationStats,
+      recentActivities,
     };
 
     res.status(200).json({
@@ -249,4 +293,135 @@ const getSystemAnalytics = async (req, res) => {
 module.exports = {
   getDashboardStats,
   getSystemAnalytics,
+  // createDoctor will be added to exports below
 };
+
+// @desc    Create a new doctor (admin only)
+// @route   POST /api/admin/doctors
+// @access  Private (Admin only)
+const createDoctor = async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      password,
+      phone,
+      specialization,
+      licenseNumber,
+      experience,
+      consultationFee,
+      education = [],
+      languages = [],
+      address = {},
+      bio,
+    } = req.body;
+
+    if (!name || !email || !password || !specialization || !licenseNumber ||
+        typeof experience === 'undefined' || typeof consultationFee === 'undefined') {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields for doctor creation',
+      });
+    }
+
+    const existingUser = await User.findOne({ $or: [ { email }, { licenseNumber } ] });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'A user with this email or license number already exists',
+      });
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      password,
+      phone,
+      role: 'doctor',
+      specialization,
+      licenseNumber,
+      experience,
+      consultationFee,
+      education,
+      languages,
+      address,
+      bio,
+    });
+
+    user.password = undefined;
+
+    return res.status(201).json({
+      success: true,
+      message: 'Doctor created successfully',
+      data: user,
+    });
+  } catch (error) {
+    console.error('Create doctor error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error during doctor creation',
+    });
+  }
+};
+
+module.exports.createDoctor = createDoctor;
+
+// @desc    Create a new patient (admin only)
+// @route   POST /api/admin/patients
+// @access  Private (Admin only)
+const createPatient = async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      password,
+      phone,
+      dateOfBirth,
+      gender,
+      address = {},
+    } = req.body;
+
+    if (!name || !email || !password || !dateOfBirth || !gender) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields for patient creation',
+      });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'A user with this email already exists',
+      });
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      password,
+      phone,
+      role: 'patient',
+      dateOfBirth,
+      gender,
+      address,
+      isActive: true,
+    });
+
+    user.password = undefined;
+
+    return res.status(201).json({
+      success: true,
+      message: 'Patient created successfully',
+      data: user,
+    });
+  } catch (error) {
+    console.error('Create patient error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error during patient creation',
+    });
+  }
+};
+
+module.exports.createPatient = createPatient;

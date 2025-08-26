@@ -13,6 +13,8 @@ import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import DoctorList from './pages/Public/DoctorList';
 import PublicDoctorProfile from './pages/Public/DoctorProfile';
+import About from './pages/About';
+import Contact from './pages/Contact';
 
 // Patient Pages
 import PatientDashboard from './pages/Patient/Dashboard';
@@ -32,6 +34,8 @@ import PatientRecords from './pages/Doctor/PatientRecords';
 import AdminDashboard from './pages/Admin/Dashboard';
 import UserManagement from './pages/Admin/UserManagement';
 import SystemAnalytics from './pages/Admin/Analytics';
+import AdminAppointments from './pages/Admin/Appointments';
+import AdminSettings from './pages/Admin/Settings';
 
 // Components
 import ProtectedRoute from './components/Auth/ProtectedRoute';
@@ -67,6 +71,8 @@ function App() {
           <Route path="register" element={!isAuthenticated ? <Register /> : <Navigate to={getDashboardRoute(user?.role)} />} />
           <Route path="doctors" element={<DoctorList />} />
           <Route path="doctors/:id" element={<PublicDoctorProfile />} />
+          <Route path="about" element={<About />} />
+          <Route path="contact" element={<Contact />} />
         </Route>
 
         {/* Protected Routes */}
@@ -89,6 +95,8 @@ function App() {
           <Route path="admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
           <Route path="admin/users" element={<ProtectedRoute allowedRoles={['admin']}><UserManagement /></ProtectedRoute>} />
           <Route path="admin/analytics" element={<ProtectedRoute allowedRoles={['admin']}><SystemAnalytics /></ProtectedRoute>} />
+          <Route path="admin/appointments" element={<ProtectedRoute allowedRoles={['admin']}><AdminAppointments /></ProtectedRoute>} />
+          <Route path="admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><AdminSettings /></ProtectedRoute>} />
         </Route>
 
         {/* Redirect authenticated users to their dashboard */}

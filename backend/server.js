@@ -13,6 +13,12 @@ dotenv.config();
 // Connect to database
 connectDB();
 
+// Seed default admin once DB is connected
+const ensureDefaultAdmin = require('./utils/seedAdmin');
+setTimeout(() => {
+  ensureDefaultAdmin();
+}, 1500);
+
 const app = express();
 
 // Trust proxy setting for rate limiting
@@ -63,6 +69,7 @@ app.use('/api/doctors', require('./routes/doctors'));
 app.use('/api/patients', require('./routes/patients'));
 app.use('/api/appointments', require('./routes/appointments'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/settings', require('./routes/settings'));
 
 // Handle undefined routes
 app.all('*', (req, res) => {

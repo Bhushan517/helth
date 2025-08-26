@@ -38,6 +38,12 @@ const adminService = {
     return response.data;
   },
 
+  getAppointments: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    const response = await api.get(`/appointments?${queryString}`);
+    return response.data;
+  },
+
   getUser: async (id) => {
     const response = await api.get(`/users/${id}`);
     return response.data;
@@ -50,6 +56,16 @@ const adminService = {
 
   deleteUser: async (id) => {
     const response = await api.delete(`/users/${id}`);
+    return response.data;
+  },
+
+  createDoctor: async (data) => {
+    const response = await api.post('/admin/doctors', data);
+    return response.data;
+  },
+
+  createPatient: async (data) => {
+    const response = await api.post('/admin/patients', data);
     return response.data;
   },
 };

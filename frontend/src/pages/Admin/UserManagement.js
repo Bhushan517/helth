@@ -13,6 +13,7 @@ import {
   FiCheck
 } from 'react-icons/fi';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
+import adminService from '../../services/adminService';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -23,92 +24,50 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showAddDoctor, setShowAddDoctor] = useState(false);
   const [usersPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
 
-  // Mock data - replace with actual API call
+  // Load users from API with filters
   useEffect(() => {
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setUsers([
-        {
-          _id: '1',
-          name: 'John Doe',
-          email: 'john.doe@example.com',
-          role: 'patient',
-          isActive: true,
-          createdAt: '2024-01-15',
-          lastLogin: '2024-01-20',
-          phone: '+1234567890',
-          address: { city: 'New York' }
-        },
-        {
-          _id: '2',
-          name: 'Dr. Sarah Wilson',
-          email: 'sarah.wilson@example.com',
-          role: 'doctor',
-          isActive: true,
-          createdAt: '2024-01-10',
-          lastLogin: '2024-01-21',
-          phone: '+1234567891',
-          specialization: 'Cardiology',
-          experience: 10
-        },
-        {
-          _id: '3',
-          name: 'Mike Johnson',
-          email: 'mike.johnson@example.com',
-          role: 'patient',
-          isActive: false,
-          createdAt: '2024-01-12',
-          lastLogin: '2024-01-18',
-          phone: '+1234567892',
-          address: { city: 'Los Angeles' }
-        },
-        {
-          _id: '4',
-          name: 'Dr. Emily Chen',
-          email: 'emily.chen@example.com',
-          role: 'doctor',
-          isActive: true,
-          createdAt: '2024-01-08',
-          lastLogin: '2024-01-21',
-          phone: '+1234567893',
-          specialization: 'Dermatology',
-          experience: 8
-        },
-        {
-          _id: '5',
-          name: 'Admin User',
-          email: 'admin@example.com',
-          role: 'admin',
-          isActive: true,
-          createdAt: '2024-01-01',
-          lastLogin: '2024-01-21',
-          phone: '+1234567894'
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        const params = { page: currentPage, limit: usersPerPage };
+        if (roleFilter !== 'all') params.role = roleFilter;
+        if (statusFilter !== 'all') params.status = statusFilter;
+        if (searchTerm) params.search = searchTerm;
+        const res = await adminService.getUsers(params);
+        if (res?.success) {
+          setUsers(res.data || []);
+          setTotalCount(res.total || 0);
+        } else {
+          setUsers([]);
+          setTotalCount(0);
         }
-      ]);
-      setLoading(false);
-    }, 1000);
-  }, []);
+      } catch (e) {
+        console.error('Failed to fetch users', e);
+        setUsers([]);
+        setTotalCount(0);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, [currentPage, usersPerPage, roleFilter, statusFilter, searchTerm]);
 
-  // Filter users based on search and filters
+  // Client-side safeguard search (server filters already applied)
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    const matchesStatus = statusFilter === 'all' ||
-                         (statusFilter === 'active' && user.isActive) ||
-                         (statusFilter === 'inactive' && !user.isActive);
-
-    return matchesSearch && matchesRole && matchesStatus;
+    const matchesSearch = user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
 
   // Pagination
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
-  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
-  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+  const currentUsers = filteredUsers; // already paginated from server
+  const totalPages = Math.ceil((totalCount || filteredUsers.length) / usersPerPage);
 
   const getRoleIcon = (role) => {
     switch (role) {
@@ -135,7 +94,6 @@ const UserManagement = () => {
 
   const handleEditUser = (user) => {
     setSelectedUser(user);
-    // Open edit modal
     console.log('Edit user:', user);
   };
 
@@ -159,7 +117,7 @@ const UserManagement = () => {
           <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
           <p className="text-gray-600 mt-1">Manage patients, doctors, and administrators</p>
         </div>
-        <button className="btn-primary flex items-center mt-4 sm:mt-0">
+        <button className="btn-primary flex items-center mt-4 sm:mt-0" onClick={() => setShowAddDoctor(true)}>
           <FiUserPlus className="h-4 w-4 mr-2" />
           Add New User
         </button>
@@ -286,7 +244,7 @@ const UserManagement = () => {
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200">
                 <div className="text-sm text-gray-700">
-                  Showing {indexOfFirstUser + 1} to {Math.min(indexOfLastUser, filteredUsers.length)} of {filteredUsers.length} users
+                  Showing {indexOfFirstUser + 1} to {Math.min(indexOfLastUser, totalCount)} of {totalCount} users
                 </div>
                 <div className="flex space-x-2">
                   <button
@@ -317,6 +275,16 @@ const UserManagement = () => {
           onClose={() => {
             setShowUserModal(false);
             setSelectedUser(null);
+          }}
+        />
+      )}
+
+      {showAddDoctor && (
+        <AddDoctorModal
+          onClose={() => setShowAddDoctor(false)}
+          onCreated={(newDoctor) => {
+            setUsers((prev) => [newDoctor, ...prev]);
+            setShowAddDoctor(false);
           }}
         />
       )}
@@ -530,3 +498,166 @@ const UserDetailsModal = ({ user, onClose }) => {
 };
 
 export default UserManagement;
+
+// Add Doctor Modal Component
+const AddDoctorModal = ({ onClose, onCreated }) => {
+  const [form, setForm] = useState({
+    role: 'doctor',
+    name: '',
+    email: '',
+    password: '',
+    phone: '',
+    specialization: '',
+    licenseNumber: '',
+    experience: '',
+    consultationFee: '',
+    dateOfBirth: '',
+    gender: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError('');
+    try {
+      let res;
+      if (form.role === 'doctor') {
+        const payload = {
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          phone: form.phone,
+          specialization: form.specialization,
+          licenseNumber: form.licenseNumber,
+          experience: Number(form.experience),
+          consultationFee: Number(form.consultationFee),
+        };
+        res = await adminService.createDoctor(payload);
+      } else {
+        const payload = {
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          phone: form.phone,
+          dateOfBirth: form.dateOfBirth,
+          gender: form.gender,
+        };
+        res = await adminService.createPatient(payload);
+      }
+      if (res?.success) {
+        onCreated(res.data);
+      } else {
+        setError(res?.message || 'Failed to create doctor');
+      }
+    } catch (err) {
+      setError(err?.response?.data?.message || err.message || 'Failed to create doctor');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content max-w-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">Add Doctor</h2>
+            <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600">
+              <FiX className="h-6 w-6" />
+            </button>
+          </div>
+
+          {error && <div className="mb-4 text-sm text-red-600">{error}</div>}
+
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div>
+              <label className="form-label">Role</label>
+              <select
+                name="role"
+                value={form.role}
+                onChange={handleChange}
+                className="input-field"
+              >
+                <option value="doctor">Doctor</option>
+                <option value="patient">Patient</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="form-label">Full Name</label>
+                <input name="name" value={form.name} onChange={handleChange} className="input-field" required />
+              </div>
+              <div>
+                <label className="form-label">Email</label>
+                <input name="email" type="email" value={form.email} onChange={handleChange} className="input-field" required />
+              </div>
+              <div>
+                <label className="form-label">Password</label>
+                <input name="password" type="password" value={form.password} onChange={handleChange} className="input-field" required />
+              </div>
+              <div>
+                <label className="form-label">Phone</label>
+                <input name="phone" value={form.phone} onChange={handleChange} className="input-field" />
+              </div>
+              {form.role === 'doctor' && (
+              <div>
+                <label className="form-label">Specialization</label>
+                <input name="specialization" value={form.specialization} onChange={handleChange} className="input-field" required />
+              </div>
+              )}
+              {form.role === 'doctor' && (
+              <div>
+                <label className="form-label">License Number</label>
+                <input name="licenseNumber" value={form.licenseNumber} onChange={handleChange} className="input-field" required />
+              </div>
+              )}
+              {form.role === 'doctor' && (
+              <div>
+                <label className="form-label">Experience (years)</label>
+                <input name="experience" type="number" value={form.experience} onChange={handleChange} className="input-field" min="0" required />
+              </div>
+              )}
+              {form.role === 'doctor' && (
+              <div>
+                <label className="form-label">Consultation Fee</label>
+                <input name="consultationFee" type="number" value={form.consultationFee} onChange={handleChange} className="input-field" min="0" required />
+              </div>
+              )}
+              {form.role === 'patient' && (
+              <div>
+                <label className="form-label">Date of Birth</label>
+                <input name="dateOfBirth" type="date" value={form.dateOfBirth} onChange={handleChange} className="input-field" required />
+              </div>
+              )}
+              {form.role === 'patient' && (
+              <div>
+                <label className="form-label">Gender</label>
+                <select name="gender" value={form.gender} onChange={handleChange} className="input-field" required>
+                  <option value="">Select</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-2">
+              <button type="button" className="btn-secondary" onClick={onClose} disabled={submitting}>Cancel</button>
+              <button type="submit" className="btn-primary" disabled={submitting}>
+                {submitting ? 'Creating...' : 'Create Doctor'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};

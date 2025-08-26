@@ -28,17 +28,28 @@ const register = async (req, res, next) => {
       });
     }
 
+    // Prevent public registration as admin; restrict doctor registration to admin-only flow
+    if (role === 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin accounts cannot be created via public registration',
+      });
+    }
+
+    // Enforce patient-only public registration by default
+    const effectiveRole = role === 'doctor' ? 'patient' : (role || 'patient');
+
     // Create user object
     const userData = {
       name,
       email,
       password,
-      role: role || 'patient',
+      role: effectiveRole,
       phone,
     };
 
     // Add role-specific fields
-    if (role === 'doctor') {
+    if (effectiveRole === 'doctor') {
       if (!specialization || !licenseNumber || !experience || !consultationFee) {
         return res.status(400).json({
           success: false,
@@ -49,7 +60,7 @@ const register = async (req, res, next) => {
       userData.licenseNumber = licenseNumber;
       userData.experience = experience;
       userData.consultationFee = consultationFee;
-    } else if (role === 'patient') {
+    } else if (effectiveRole === 'patient') {
       if (!dateOfBirth || !gender) {
         return res.status(400).json({
           success: false,

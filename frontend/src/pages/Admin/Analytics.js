@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   FiTrendingUp,
@@ -10,55 +10,44 @@ import {
   FiDownload,
   FiRefreshCw
 } from 'react-icons/fi';
-import { getAnalytics } from '../../redux/slices/adminSlice';
+import { getAnalytics, getDashboardStats } from '../../redux/slices/adminSlice';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
 
 const SystemAnalytics = () => {
   const dispatch = useDispatch();
-  const { loading } = useSelector((state) => state.admin);
+  const { loading, analytics, dashboardStats: stats } = useSelector((state) => state.admin);
   const [timeRange, setTimeRange] = useState('30');
   const [activeChart, setActiveChart] = useState('appointments');
 
   useEffect(() => {
     dispatch(getAnalytics({ period: timeRange }));
+    dispatch(getDashboardStats());
   }, [dispatch, timeRange]);
 
-  // Mock data for charts (replace with real data from analytics)
-  const mockChartData = {
-    appointments: [
-      { date: '2024-01-15', total: 45, completed: 38, cancelled: 7 },
-      { date: '2024-01-16', total: 52, completed: 47, cancelled: 5 },
-      { date: '2024-01-17', total: 38, completed: 35, cancelled: 3 },
-      { date: '2024-01-18', total: 61, completed: 55, cancelled: 6 },
-      { date: '2024-01-19', total: 49, completed: 44, cancelled: 5 },
-      { date: '2024-01-20', total: 57, completed: 51, cancelled: 6 },
-      { date: '2024-01-21', total: 43, completed: 39, cancelled: 4 },
-    ],
-    users: [
-      { date: '2024-01-15', patients: 12, doctors: 2, total: 14 },
-      { date: '2024-01-16', patients: 18, doctors: 1, total: 19 },
-      { date: '2024-01-17', patients: 8, doctors: 3, total: 11 },
-      { date: '2024-01-18', patients: 22, doctors: 1, total: 23 },
-      { date: '2024-01-19', patients: 15, doctors: 2, total: 17 },
-      { date: '2024-01-20', patients: 19, doctors: 1, total: 20 },
-      { date: '2024-01-21', patients: 11, doctors: 0, total: 11 },
-    ]
-  };
+  // Build chart data from backend analytics
+  const chartData = useMemo(() => {
+    const appointments = (analytics?.dailyAppointments || []).map((d) => ({
+      date: d._id,
+      total: d.count,
+      completed: d.completed,
+      cancelled: d.cancelled,
+    }));
 
-  const specializations = [
-    { name: 'Cardiology', count: 45, percentage: 25, color: 'bg-blue-500' },
-    { name: 'Dermatology', count: 38, percentage: 21, color: 'bg-green-500' },
-    { name: 'Neurology', count: 32, percentage: 18, color: 'bg-purple-500' },
-    { name: 'Orthopedics', count: 28, percentage: 16, color: 'bg-yellow-500' },
-    { name: 'Pediatrics', count: 22, percentage: 12, color: 'bg-red-500' },
-    { name: 'Others', count: 15, percentage: 8, color: 'bg-gray-500' },
-  ];
+    const users = (analytics?.dailyRegistrations || []).map((d) => ({
+      date: d._id,
+      patients: d.patients,
+      doctors: d.doctors,
+      total: d.total,
+    }));
+
+    return { appointments, users };
+  }, [analytics]);
 
   const kpiCards = [
     {
       title: 'Total Revenue',
-      value: '$45,230',
-      change: '+12.5%',
+      value: `$${(stats?.revenue?.total || 0).toLocaleString()}`,
+      change: '',
       trend: 'up',
       icon: FiDollarSign,
       color: 'text-green-600',
@@ -66,8 +55,8 @@ const SystemAnalytics = () => {
     },
     {
       title: 'Active Users',
-      value: '2,847',
-      change: '+8.2%',
+      value: `${stats?.users?.active || 0}`,
+      change: '',
       trend: 'up',
       icon: FiUsers,
       color: 'text-blue-600',
@@ -75,8 +64,8 @@ const SystemAnalytics = () => {
     },
     {
       title: 'Appointments',
-      value: '1,234',
-      change: '+15.3%',
+      value: `${stats?.appointments?.total || 0}`,
+      change: '',
       trend: 'up',
       icon: FiCalendar,
       color: 'text-purple-600',
@@ -84,14 +73,17 @@ const SystemAnalytics = () => {
     },
     {
       title: 'Completion Rate',
-      value: '94.2%',
-      change: '+2.1%',
+      value: `${stats?.appointments?.completionRate || 0}%`,
+      change: '',
       trend: 'up',
       icon: FiActivity,
       color: 'text-orange-600',
       bgColor: 'bg-orange-100'
     }
   ];
+
+  // Derive top doctors from dashboard stats (fallback to empty)
+  const topDoctors = stats?.topDoctors || [];
 
   return (
     <div className="space-y-6">
@@ -134,12 +126,14 @@ const SystemAnalytics = () => {
               <div className="ml-4 flex-1">
                 <p className="text-sm text-gray-600">{kpi.title}</p>
                 <p className="text-2xl font-bold text-gray-900">{kpi.value}</p>
-                <div className="flex items-center mt-1">
-                  <FiTrendingUp className={`h-4 w-4 mr-1 ${kpi.trend === 'up' ? 'text-green-500' : 'text-red-500'}`} />
-                  <span className={`text-sm ${kpi.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                    {kpi.change}
-                  </span>
-                </div>
+                {kpi.change && (
+                  <div className="flex items-center mt-1">
+                    <FiTrendingUp className={`h-4 w-4 mr-1 ${kpi.trend === 'up' ? 'text-green-500' : 'text-red-500'}`} />
+                    <span className={`text-sm ${kpi.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+                      {kpi.change}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -186,7 +180,7 @@ const SystemAnalytics = () => {
             ) : (
               <div className="h-64">
                 <SimpleLineChart
-                  data={mockChartData[activeChart]}
+                  data={chartData[activeChart] || []}
                   type={activeChart}
                 />
               </div>
@@ -204,23 +198,26 @@ const SystemAnalytics = () => {
               </h2>
             </div>
             <div className="space-y-4">
-              {specializations.map((spec, index) => (
+              {(analytics?.specializationStats || []).map((spec, index) => (
                 <div key={index} className="flex items-center">
-                  <div className={`w-4 h-4 ${spec.color} rounded mr-3`}></div>
+                  <div className={`w-4 h-4 bg-blue-500 rounded mr-3`}></div>
                   <div className="flex-1">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium text-gray-900">{spec.name}</span>
+                      <span className="text-sm font-medium text-gray-900">{spec._id || 'Unknown'}</span>
                       <span className="text-sm text-gray-600">{spec.count}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className={`h-2 rounded-full ${spec.color}`}
-                        style={{ width: `${spec.percentage}%` }}
+                        className={`h-2 rounded-full bg-blue-500`}
+                        style={{ width: `${Math.min(100, (spec.count / Math.max(1, (analytics?.specializationStats?.[0]?.count || spec.count))) * 100)}%` }}
                       ></div>
                     </div>
                   </div>
                 </div>
               ))}
+              {!analytics?.specializationStats?.length && (
+                <div className="text-gray-500 text-sm">No data available</div>
+              )}
             </div>
           </div>
         </div>
@@ -240,38 +237,30 @@ const SystemAnalytics = () => {
                   <th className="table-header">Doctor</th>
                   <th className="table-header">Appointments</th>
                   <th className="table-header">Revenue</th>
-                  <th className="table-header">Rating</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {[
-                  { name: 'Dr. Sarah Wilson', appointments: 156, revenue: 15600, rating: 4.9 },
-                  { name: 'Dr. Michael Chen', appointments: 142, revenue: 14200, rating: 4.8 },
-                  { name: 'Dr. Emily Davis', appointments: 138, revenue: 13800, rating: 4.7 },
-                  { name: 'Dr. James Brown', appointments: 125, revenue: 12500, rating: 4.6 },
-                  { name: 'Dr. Lisa Johnson', appointments: 118, revenue: 11800, rating: 4.8 },
-                ].map((doctor, index) => (
-                  <tr key={index}>
+                {topDoctors.map((doctor) => (
+                  <tr key={doctor._id}>
                     <td className="table-cell">
                       <div className="flex items-center">
                         <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center mr-3">
                           <span className="text-sm font-medium text-primary-600">
-                            {doctor.name.split(' ')[1].charAt(0)}
+                            {doctor.name?.charAt(0)}
                           </span>
                         </div>
-                        <span className="font-medium">{doctor.name}</span>
+                        <span className="font-medium">Dr. {doctor.name}</span>
                       </div>
                     </td>
-                    <td className="table-cell">{doctor.appointments}</td>
-                    <td className="table-cell">${doctor.revenue.toLocaleString()}</td>
-                    <td className="table-cell">
-                      <div className="flex items-center">
-                        <span className="text-yellow-400 mr-1">★</span>
-                        <span>{doctor.rating}</span>
-                      </div>
-                    </td>
+                    <td className="table-cell">{doctor.appointmentCount}</td>
+                    <td className="table-cell">${(doctor.revenue || 0).toLocaleString()}</td>
                   </tr>
                 ))}
+                {!topDoctors.length && (
+                  <tr>
+                    <td colSpan="3" className="table-cell text-center text-gray-500">No data</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -283,25 +272,20 @@ const SystemAnalytics = () => {
             <h2 className="text-lg font-semibold text-gray-900">Recent System Activity</h2>
           </div>
           <div className="space-y-4">
-            {[
-              { action: 'New doctor registration', user: 'Dr. Alex Thompson', time: '2 minutes ago', type: 'success' },
-              { action: 'Appointment cancelled', user: 'John Doe', time: '15 minutes ago', type: 'warning' },
-              { action: 'Payment processed', user: 'Sarah Wilson', time: '32 minutes ago', type: 'success' },
-              { action: 'Profile updated', user: 'Dr. Emily Chen', time: '1 hour ago', type: 'info' },
-              { action: 'New patient registration', user: 'Mike Johnson', time: '2 hours ago', type: 'success' },
-            ].map((activity, index) => (
+            {(analytics?.recentActivities || []).map((activity, index) => (
               <div key={index} className="flex items-center space-x-3">
                 <div className={`w-2 h-2 rounded-full ${
-                  activity.type === 'success' ? 'bg-green-500' :
-                  activity.type === 'warning' ? 'bg-yellow-500' :
-                  activity.type === 'info' ? 'bg-blue-500' : 'bg-gray-500'
+                  activity.type === 'appointment' ? (activity.status === 'cancelled' ? 'bg-red-500' : 'bg-green-500') : 'bg-blue-500'
                 }`}></div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                  <p className="text-xs text-gray-600">{activity.user} • {activity.time}</p>
+                  <p className="text-xs text-gray-600">{activity.user} • {new Date(activity.time).toLocaleString()}</p>
                 </div>
               </div>
             ))}
+            {!analytics?.recentActivities?.length && (
+              <div className="text-sm text-gray-500">No recent activity</div>
+            )}
           </div>
         </div>
       </div>

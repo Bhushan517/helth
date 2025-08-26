@@ -172,6 +172,11 @@ const createAppointment = async (req, res) => {
       });
     }
 
+    // Read settings to determine auto-confirm
+    const Setting = require('../models/Setting');
+    const settings = await Setting.getSettings();
+    const initialStatus = settings.autoConfirmAppointments ? 'confirmed' : 'scheduled';
+
     // Create appointment
     const appointment = await Appointment.create({
       patient: req.user.id,
@@ -182,6 +187,7 @@ const createAppointment = async (req, res) => {
       type: type || 'consultation',
       symptoms: symptoms || [],
       consultationFee: doctorUser.consultationFee,
+      status: initialStatus,
     });
 
     // Populate the created appointment
