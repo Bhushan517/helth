@@ -94,8 +94,8 @@ jspm_packages/
 */nuxt
 
 # Gatsby files
-public
-*/public
+# public
+# */public
 
 # Storybook build outputs
 .out
