@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://helth-42uq.onrender.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://helth-1.onrender.com/api';
 
 // Create axios instance
 const api = axios.create({
