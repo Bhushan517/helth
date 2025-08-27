@@ -32,14 +32,21 @@ const PatientRecords = () => {
   }, [dispatch]);
 
   // Extract unique patients from appointments
-  const patients = appointments.reduce((uniquePatients, appointment) => {
-    if (appointment.patient && !uniquePatients.find(p => p._id === appointment.patient._id)) {
-      const patientAppointments = appointments.filter(apt => apt.patient?._id === appointment.patient._id);
+  const patients = (appointments || []).reduce((uniquePatients, appointment) => {
+    const patientObj = appointment?.patient;
+    if (patientObj && !uniquePatients.find(p => p._id === patientObj._id)) {
+      const patientAppointments = (appointments || []).filter(apt => apt.patient?._id === patientObj._id);
+      const lastCompletedVisit = patientAppointments
+        .filter(apt => apt.status === 'completed')
+        .sort((a, b) => new Date(b.appointmentDate) - new Date(a.appointmentDate))[0]?.appointmentDate;
       const patientData = {
-        ...appointment.patient,
+        ...patientObj,
+        medicalHistory: patientObj.medicalHistory || [],
+        allergies: patientObj.allergies || [],
+        medications: patientObj.medications || [],
+        address: patientObj.address || {},
         totalAppointments: patientAppointments.length,
-        lastVisit: patientAppointments
-          .filter(apt => apt.status === 'completed')
+        lastVisit: lastCompletedVisit || patientAppointments
           .sort((a, b) => new Date(b.appointmentDate) - new Date(a.appointmentDate))[0]?.appointmentDate,
         recentAppointments: patientAppointments
           .sort((a, b) => new Date(b.appointmentDate) - new Date(a.appointmentDate))
@@ -105,7 +112,7 @@ const PatientRecords = () => {
             <FiFileText className="h-6 w-6 text-purple-600" />
           </div>
           <h3 className="text-2xl font-bold text-gray-900">
-            {patients.reduce((sum, p) => sum + p.medicalHistory.length, 0)}
+            {patients.reduce((sum, p) => sum + (p.medicalHistory?.length || 0), 0)}
           </h3>
           <p className="text-gray-600">Medical Records</p>
         </div>
@@ -116,10 +123,10 @@ const PatientRecords = () => {
           </div>
           <h3 className="text-2xl font-bold text-gray-900">
             {patients.filter(p => {
-              const lastVisit = new Date(p.lastVisit);
+              const lastVisit = p.lastVisit ? new Date(p.lastVisit) : null;
               const weekAgo = new Date();
               weekAgo.setDate(weekAgo.getDate() - 7);
-              return lastVisit >= weekAgo;
+              return lastVisit ? lastVisit >= weekAgo : false;
             }).length}
           </h3>
           <p className="text-gray-600">Recent Visits</p>
@@ -236,7 +243,7 @@ const PatientCard = ({ patient, onView, onAddRecord }) => {
                     {patient.age} years, {patient.gender}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {patient.address.city}, {patient.address.state}
+                    {patient.address?.city || '—'}, {patient.address?.state || '—'}
                   </p>
                 </div>
               </div>
@@ -244,7 +251,7 @@ const PatientCard = ({ patient, onView, onAddRecord }) => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-gray-600">
                 <div className="flex items-center">
                   <FiCalendar className="h-4 w-4 mr-2" />
-                  Last visit: {new Date(patient.lastVisit).toLocaleDateString()}
+                  Last visit: {patient.lastVisit ? new Date(patient.lastVisit).toLocaleDateString() : '—'}
                 </div>
                 <div className="flex items-center">
                   <FiUser className="h-4 w-4 mr-2" />
@@ -252,20 +259,20 @@ const PatientCard = ({ patient, onView, onAddRecord }) => {
                 </div>
                 <div className="flex items-center">
                   <FiFileText className="h-4 w-4 mr-2" />
-                  {patient.medicalHistory.length} conditions
+                  {(patient.medicalHistory?.length || 0)} conditions
                 </div>
               </div>
 
               {/* Quick Info */}
               <div className="mt-3 flex flex-wrap gap-2">
-                {patient.allergies.length > 0 && (
+                {(patient.allergies?.length || 0) > 0 && (
                   <span className="badge badge-danger text-xs">
-                    {patient.allergies.length} allergies
+                    {(patient.allergies?.length || 0)} allergies
                   </span>
                 )}
-                {patient.medications.length > 0 && (
+                {(patient.medications?.length || 0) > 0 && (
                   <span className="badge badge-primary text-xs">
-                    {patient.medications.length} medications
+                    {(patient.medications?.length || 0)} medications
                   </span>
                 )}
               </div>
@@ -334,7 +341,7 @@ const PatientDetailsModal = ({ patient, onClose }) => {
                   </div>
                   <div className="flex items-center">
                     <FiMapPin className="h-4 w-4 mr-1" />
-                    {patient.address.city}, {patient.address.state}
+                    {patient.address?.city || '—'}, {patient.address?.state || '—'}
                   </div>
                 </div>
               </div>
@@ -346,7 +353,7 @@ const PatientDetailsModal = ({ patient, onClose }) => {
               <div>
                 <h4 className="font-medium text-gray-900 mb-3">Medical History</h4>
                 <div className="space-y-3">
-                  {patient.medicalHistory.map((condition, index) => (
+                  {patient.medicalHistory?.map((condition, index) => (
                     <div key={index} className="border border-gray-200 rounded-lg p-3">
                       <div className="flex justify-between items-start mb-2">
                         <h5 className="font-medium text-gray-900">{condition.condition}</h5>
@@ -373,7 +380,7 @@ const PatientDetailsModal = ({ patient, onClose }) => {
               <div>
                 <h4 className="font-medium text-gray-900 mb-3">Current Medications</h4>
                 <div className="space-y-3">
-                  {patient.medications.map((med, index) => (
+                  {patient.medications?.map((med, index) => (
                     <div key={index} className="border border-gray-200 rounded-lg p-3">
                       <h5 className="font-medium text-gray-900">{med.name}</h5>
                       <p className="text-sm text-gray-600">
@@ -391,7 +398,7 @@ const PatientDetailsModal = ({ patient, onClose }) => {
             {/* Allergies */}
             <div>
               <h4 className="font-medium text-gray-900 mb-3">Allergies</h4>
-              {patient.allergies.length > 0 ? (
+              {(patient.allergies?.length || 0) > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {patient.allergies.map((allergy, index) => (
                     <span key={index} className="badge badge-danger">
@@ -408,17 +415,17 @@ const PatientDetailsModal = ({ patient, onClose }) => {
             <div>
               <h4 className="font-medium text-gray-900 mb-3">Recent Appointments</h4>
               <div className="space-y-3">
-                {patient.recentAppointments.map((appointment, index) => (
+                {patient.recentAppointments?.map((appointment, index) => (
                   <div key={index} className="border border-gray-200 rounded-lg p-3">
                     <div className="flex justify-between items-start mb-2">
                       <span className="font-medium text-gray-900">
-                        {new Date(appointment.date).toLocaleDateString()}
+                        {appointment.appointmentDate ? new Date(appointment.appointmentDate).toLocaleDateString() : '—'}
                       </span>
                       <span className="badge badge-primary text-xs">
-                        {appointment.type}
+                        {appointment.type || 'appointment'}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600">{appointment.notes}</p>
+                    <p className="text-sm text-gray-600">{appointment?.notes?.doctor || appointment?.notes || '—'}</p>
                   </div>
                 ))}
               </div>
