@@ -20,7 +20,7 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('active');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -97,9 +97,23 @@ const UserManagement = () => {
     console.log('Edit user:', user);
   };
 
-  const handleDeleteUser = (user) => {
-    if (window.confirm(`Are you sure you want to delete ${user.name}?`)) {
-      setUsers(users.filter(u => u._id !== user._id));
+  const handleDeleteUser = async (user) => {
+    if (!window.confirm(`Are you sure you want to delete ${user.name}?`)) return;
+    try {
+      await adminService.deleteUser(user._id);
+      setUsers(prev => prev.filter(u => u._id !== user._id));
+      // Optionally refetch to sync pagination counts
+      const params = { page: currentPage, limit: usersPerPage };
+      if (roleFilter !== 'all') params.role = roleFilter;
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (searchTerm) params.search = searchTerm;
+      const res = await adminService.getUsers(params);
+      if (res?.success) {
+        setUsers(res.data || []);
+        setTotalCount(res.total || 0);
+      }
+    } catch (e) {
+      console.error('Failed to delete user', e);
     }
   };
 

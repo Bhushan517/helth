@@ -5,13 +5,20 @@ const User = require('../models/User');
 // @access  Private (Admin only)
 const getUsers = async (req, res) => {
   try {
-    const { role, page = 1, limit = 10, search } = req.query;
+    const { role, page = 1, limit = 10, search, status } = req.query;
     
     // Build query
     let query = {};
     
     if (role) {
       query.role = role;
+    }
+
+    // Filter by status (active/inactive)
+    if (status === 'active') {
+      query.isActive = true;
+    } else if (status === 'inactive') {
+      query.isActive = false;
     }
     
     if (search) {
@@ -119,27 +126,24 @@ const updateUser = async (req, res) => {
   }
 };
 
-// @desc    Delete user
+// @desc    Delete user (hard delete)
 // @route   DELETE /api/users/:id
 // @access  Private (Admin only)
 const deleteUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const deletedUser = await User.findByIdAndDelete(req.params.id);
 
-    if (!user) {
+    if (!deletedUser) {
       return res.status(404).json({
         success: false,
         message: 'User not found',
       });
     }
 
-    // Soft delete by deactivating the user
-    user.isActive = false;
-    await user.save();
-
     res.status(200).json({
       success: true,
-      message: 'User deactivated successfully',
+      message: 'User deleted successfully',
+      data: { _id: deletedUser._id },
     });
   } catch (error) {
     console.error('Delete user error:', error);

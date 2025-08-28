@@ -9,7 +9,8 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://helth-1.onrender.com/api/:splat"
+  to = "https://helth-1.onrender.com/
+/api/:splat"
   status = 200
 
 [[redirects]]
